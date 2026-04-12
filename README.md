@@ -26,6 +26,7 @@ TinyPNG for macOS is a 3rd-party client of [TinyPNG](https://tinypng.com). With 
 1. Register an **API key** at [link](https://tinypng.com/developers).
 2. Paste your API key to `Settings` window. (You can edit it when you need to)
 3. Drag images or directories containing images to the window.
+4. Or right-click image files / folders in Finder and choose `Services -> Compress with Tiny Image`.
 
 
 

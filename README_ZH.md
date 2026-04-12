@@ -26,6 +26,7 @@ TinyPNG for macOS 是 [TinyPNG](https://tinypng.com) 的第三方客户端，使
 1. 在 [这里](https://tinypng.com/developers) 注册 **API key**。
 2. 将 API key 粘贴到 `设置` 窗口中。（如果需要，您可以随时修改）
 3. 将图片或包含图片的文件夹拖拽到窗口中。
+4. 或者在 Finder 中右键图片文件 / 文件夹，选择“服务 -> 使用 Tiny Image 压缩”。
 
 
 
