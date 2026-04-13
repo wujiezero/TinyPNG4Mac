@@ -203,6 +203,7 @@ class TPClient {
                         downloadedUrl = downloadUrl
                     }
 
+                    try targetUrl.ensureDirectoryExists()
                     try downloadedUrl.moveFileTo(targetUrl)
                     if let filePermission = task.filePermission {
                         targetUrl.setPosixPermissions(filePermission)

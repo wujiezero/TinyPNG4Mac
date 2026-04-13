@@ -36,7 +36,9 @@ struct TinyPNG4MacApp: App {
                     }
                     firstAppear = false
 
-                    appDelgate.updateViewModel(vm: vm)
+                    appDelgate.configure(viewModel: vm) {
+                        openWindow(id: "main")
+                    }
                 }
                 .environmentObject(appContext)
                 .environmentObject(debugVM)
@@ -83,18 +85,41 @@ struct TinyPNG4MacApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var vm: MainViewModel?
+    private var openMainWindow: (() -> Void)?
 
-    private var openUrls: [URL]?
+    private var pendingOpenUrls: [URL] = []
     private var appDidFinishLaunching = false
 
-    func updateViewModel(vm: MainViewModel) {
+    func configure(viewModel vm: MainViewModel, openMainWindow: @escaping () -> Void) {
         if self.vm == nil {
             self.vm = vm
         }
+        self.openMainWindow = openMainWindow
+
+        tryHandleOpenUrls()
+    }
+
+    @objc(compressSelection:userData:error:)
+    func compressSelection(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingFileURLsOnly: true,
+        ]
+        let urls = (pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL])?
+            .map(\.standardizedFileURL) ?? []
+
+        if urls.isEmpty {
+            error.pointee = "No valid files were provided to Tiny Image." as NSString
+            return
+        }
+
+        enqueueOpenUrls(urls, bringAppToFront: true)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         FileUtils.initPaths()
+
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
 
         if let window = NSApp.windows.first {
             window.titleVisibility = .hidden
@@ -107,12 +132,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        openUrls = urls
-        if appDidFinishLaunching {
-            DispatchQueue.main.async {
-                self.tryHandleOpenUrls()
-            }
-        }
+        enqueueOpenUrls(urls, bringAppToFront: true)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -133,10 +153,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func tryHandleOpenUrls() {
-        if let urls = openUrls {
-            openUrls = nil
-            let imageUrls = FileUtils.findImageFiles(urls: urls)
-            vm?.createTasks(imageURLs: imageUrls)
+        guard appDidFinishLaunching, let vm, !pendingOpenUrls.isEmpty else {
+            return
+        }
+
+        let urls = pendingOpenUrls
+        pendingOpenUrls.removeAll()
+
+        let imageUrls = FileUtils.findImageFiles(urls: urls)
+        if !imageUrls.isEmpty {
+            vm.createTasks(imageURLs: imageUrls)
+        }
+    }
+
+    private func enqueueOpenUrls(_ urls: [URL], bringAppToFront: Bool) {
+        guard !urls.isEmpty else {
+            return
+        }
+
+        for url in urls {
+            if !pendingOpenUrls.contains(where: { $0.isSameFilePath(as: url) }) {
+                pendingOpenUrls.append(url)
+            }
+        }
+
+        DispatchQueue.main.async {
+            if bringAppToFront {
+                self.openMainWindow?()
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.windows.first?.makeKeyAndOrderFront(nil)
+            }
+
+            self.tryHandleOpenUrls()
         }
     }
 }
